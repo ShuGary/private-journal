@@ -1,0 +1,260 @@
+<div id="root">
+  <div class="topbar">
+    <div class="brand">容 器</div>
+    <button class="export-btn" id="exportBtn">导出</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="today">今天</button>
+    <button class="tab" data-tab="notes">碎碎念</button>
+    <button class="tab" data-tab="archive">翻旧页</button>
+  </div>
+
+  <!-- TODAY -->
+  <div class="page active" id="page-today">
+    <div class="principle">记录不等于处理。一条记录如果不能帮未来的你做出更好的判断，它只是当时情绪的一张截图。</div>
+    <div class="datebar">
+      <div class="today" id="dateLabel"></div>
+      <div class="nav" id="nav"></div>
+    </div>
+    <div id="fields"></div>
+    <div class="field">
+      <div class="label"><span class="name">状态</span><span class="q">状态差时，别做宏大的决定。</span></div>
+      <div class="state-row">
+        <input type="range" min="1" max="5" value="3" id="state">
+        <span class="state-val" id="stateVal">3</span>
+      </div>
+      <div class="state-labels"><span>枯竭</span><span id="stateWord">尚可</span><span>充盈</span></div>
+    </div>
+    <div class="actions">
+      <button class="save" id="saveBtn">保存这一页</button>
+      <span class="saved-note" id="savedNote">已经接住了 ✦</span>
+    </div>
+  </div>
+
+  <!-- NOTES (碎碎念) -->
+  <div class="page" id="page-notes">
+    <div class="note-input-wrap">
+      <textarea id="noteInput" placeholder="随手记一句…不用工整，不用完整。"></textarea>
+      <button class="note-add" id="noteAdd">记下</button>
+    </div>
+    <div id="noteStream"></div>
+  </div>
+
+  <!-- ARCHIVE -->
+  <div class="page" id="page-archive">
+    <input class="search" id="search" placeholder="🔍 搜索所有记录…">
+    <div id="archive"></div>
+  </div>
+</div>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Newsreader:ital,opsz@0,6..72;1,6..72&display=swap');
+  :root{--paper:#f4efe6;--paper-deep:#ece4d6;--ink:#2b2620;--ink-soft:#5c5347;--ink-faint:#8a8073;--line:#d8cebd;--accent:#a8442a;--accent-soft:#c97a5f;--gold:#b08442;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  #root{font-family:'Newsreader',Georgia,serif;color:var(--ink);background:radial-gradient(circle at 20% 8%,rgba(176,132,66,0.06),transparent 40%),radial-gradient(circle at 90% 85%,rgba(168,68,42,0.05),transparent 45%),var(--paper);min-height:100vh;max-width:720px;margin:0 auto;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 10px;}
+  .brand{font-family:'Fraunces',serif;font-weight:500;font-size:26px;letter-spacing:1px;}
+  .export-btn{font-family:'Newsreader',serif;font-size:14px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);padding:7px 16px;border-radius:20px;cursor:pointer;}
+  .export-btn:active{background:var(--paper-deep);}
+
+  .tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1.5px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:5;}
+  .tab{flex:1;font-family:'Fraunces',serif;font-size:16px;background:transparent;border:none;color:var(--ink-faint);padding:12px 0;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--accent);font-weight:600;}
+
+  .page{display:none;padding:22px;}
+  .page.active{display:block;}
+
+  .principle{text-align:center;font-style:italic;color:var(--ink-soft);font-size:14px;margin:4px auto 24px;max-width:480px;line-height:1.55;}
+  .datebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px;}
+  .datebar .today{font-family:'Fraunces',serif;font-size:19px;font-weight:500;}
+  .pill{font-family:'Newsreader',serif;font-size:14px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);padding:6px 14px;border-radius:20px;cursor:pointer;}
+  .pill.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  .field{margin-bottom:24px;}
+  .field .label{display:flex;align-items:baseline;gap:9px;margin-bottom:7px;flex-wrap:wrap;}
+  .field .label .name{font-family:'Fraunces',serif;font-size:18px;font-weight:600;}
+  .field .label .q{font-style:italic;color:var(--ink-faint);font-size:13.5px;}
+  .field textarea{width:100%;min-height:64px;resize:vertical;font-family:'Newsreader',serif;font-size:17px;line-height:1.6;color:var(--ink);background:rgba(255,255,255,0.45);border:none;border-bottom:1.5px solid var(--line);padding:8px 4px 12px;outline:none;}
+  .field textarea:focus{border-bottom-color:var(--accent-soft);}
+  .field textarea::placeholder{color:var(--ink-faint);font-style:italic;opacity:0.7;}
+  .field.emotion textarea{background:rgba(201,122,95,0.07);border-radius:4px;padding:8px 12px 12px;}
+  .state-row{display:flex;align-items:center;gap:14px;padding:6px 4px;}
+  .state-row input[type=range]{flex:1;accent-color:var(--gold);height:24px;}
+  .state-val{font-family:'Fraunces',serif;font-size:22px;min-width:28px;text-align:center;color:var(--gold);}
+  .state-labels{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-faint);font-style:italic;margin-top:2px;}
+  .actions{display:flex;align-items:center;gap:14px;margin-top:30px;padding-top:20px;border-top:1.5px solid var(--line);}
+  .save{font-family:'Fraunces',serif;font-size:16px;font-weight:500;background:var(--ink);color:var(--paper);border:none;padding:13px 30px;border-radius:4px;cursor:pointer;}
+  .save:active{background:var(--accent);}
+  .saved-note{font-style:italic;color:var(--gold);font-size:14px;opacity:0;transition:opacity 0.3s;}
+  .saved-note.show{opacity:1;}
+
+  /* notes */
+  .note-input-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+  #noteInput{width:100%;min-height:72px;resize:vertical;font-family:'Newsreader',serif;font-size:17px;line-height:1.6;color:var(--ink);background:rgba(255,255,255,0.5);border:1.5px solid var(--line);border-radius:8px;padding:12px;outline:none;}
+  #noteInput:focus{border-color:var(--accent-soft);}
+  #noteInput::placeholder{color:var(--ink-faint);font-style:italic;}
+  .note-add{align-self:flex-end;font-family:'Fraunces',serif;font-size:15px;background:var(--ink);color:var(--paper);border:none;padding:9px 24px;border-radius:4px;cursor:pointer;}
+  .note-add:active{background:var(--accent);}
+  .note-item{background:rgba(255,255,255,0.4);border-left:3px solid var(--gold);border-radius:0 6px 6px 0;padding:12px 14px;margin-bottom:12px;position:relative;}
+  .note-item .nt-time{font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:5px;}
+  .note-item .nt-text{font-size:16.5px;line-height:1.55;white-space:pre-wrap;}
+  .note-item .nt-del{position:absolute;top:10px;right:12px;color:var(--ink-faint);font-size:18px;cursor:pointer;line-height:1;border:none;background:none;}
+  .note-item .nt-del:active{color:var(--accent);}
+
+  /* archive */
+  .search{width:100%;font-family:'Newsreader',serif;font-size:16px;padding:12px 14px;border:1.5px solid var(--line);border-radius:8px;background:rgba(255,255,255,0.5);outline:none;margin-bottom:20px;color:var(--ink);}
+  .search:focus{border-color:var(--accent-soft);}
+  .entry-row{padding:13px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .entry-row:active{background:var(--paper-deep);}
+  .entry-row .d{font-family:'Fraunces',serif;font-size:15px;display:block;margin-bottom:3px;}
+  .entry-row .peek{color:var(--ink-faint);font-size:14px;font-style:italic;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .entry-row .tag{font-size:11px;color:var(--gold);font-style:normal;margin-left:6px;}
+  .empty{color:var(--ink-faint);font-style:italic;font-size:14.5px;padding:8px 4px;}
+
+  @media(max-width:480px){
+    .topbar{padding:16px 16px 8px;}
+    .brand{font-size:23px;}
+    .page{padding:18px 16px;}
+    .field textarea{font-size:16.5px;}
+  }
+</style>
+
+<script>
+(function(){
+  // mobile viewport
+  try{ if(!document.querySelector('meta[name=viewport]')){var m=document.createElement('meta');m.name='viewport';m.content='width=device-width, initial-scale=1, maximum-scale=1';document.head.appendChild(m);} }catch(e){}
+
+  var KEY='rongqi_data_v1';
+  var data={ entries:{}, notes:[] };
+  function load(){ try{var s=localStorage.getItem(KEY); if(s) data=JSON.parse(s);}catch(e){} if(!data.entries)data.entries={}; if(!data.notes)data.notes=[]; }
+  function persist(){ try{localStorage.setItem(KEY,JSON.stringify(data));return true;}catch(e){return false;} }
+  load();
+
+  var FIELDS=[
+    {key:'advance',name:'推进',q:'今天推进了什么？哪怕只有一点点。',ph:'一件你真的往前挪了的事…'},
+    {key:'judgment',name:'判断',q:'今天想通了什么，或做了什么判断？',ph:'一个你比昨天更清楚的认知…'},
+    {key:'emotion',name:'情绪',q:'真实的感受 — 看见它，别伪装成判断。',ph:'难受就是难受，害怕就是害怕…',emotion:true},
+    {key:'next',name:'下一步',q:'明天最重要的那一件事。',ph:'只写一件…'}
+  ];
+  var SW=['','枯竭','低落','尚可','不错','充盈'];
+  function pad(n){return String(n).padStart(2,'0');}
+  function todayKey(){var x=new Date();return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate());}
+  function prettyDate(k){var p=k.split('-').map(Number);var wd=['周日','周一','周二','周三','周四','周五','周六'][new Date(p[0],p[1]-1,p[2]).getDay()];return p[0]+'年'+p[1]+'月'+p[2]+'日 · '+wd;}
+  function prettyTime(ts){var d=new Date(ts);return prettyDate(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()))+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+  function esc(s){return (s||'').replace(/</g,'&lt;');}
+
+  var dateKey=todayKey();
+  var entry=Object.assign({advance:'',judgment:'',emotion:'',next:'',state:3}, data.entries[dateKey]||{});
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+      document.querySelectorAll('.page').forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active');
+      document.getElementById('page-'+t.dataset.tab).classList.add('active');
+    });
+  });
+
+  // build today fields
+  var fieldsEl=document.getElementById('fields');
+  FIELDS.forEach(function(f){
+    var w=document.createElement('div');w.className='field'+(f.emotion?' emotion':'');
+    var l=document.createElement('div');l.className='label';l.innerHTML='<span class="name">'+f.name+'</span><span class="q">'+f.q+'</span>';
+    var ta=document.createElement('textarea');ta.placeholder=f.ph;ta.id='ta_'+f.key;
+    ta.addEventListener('input',function(){entry[f.key]=ta.value;});
+    w.appendChild(l);w.appendChild(ta);fieldsEl.appendChild(w);
+  });
+  var stateEl=document.getElementById('state'),stateVal=document.getElementById('stateVal'),stateWord=document.getElementById('stateWord');
+  stateEl.addEventListener('input',function(){entry.state=Number(stateEl.value);stateVal.textContent=stateEl.value;stateWord.textContent=SW[stateEl.value];});
+
+  function renderEntry(){
+    FIELDS.forEach(function(f){document.getElementById('ta_'+f.key).value=entry[f.key]||'';});
+    stateEl.value=entry.state||3;stateVal.textContent=entry.state||3;stateWord.textContent=SW[entry.state||3];
+    document.getElementById('dateLabel').textContent=prettyDate(dateKey)+(dateKey===todayKey()?' · 今天':'');
+    var nav=document.getElementById('nav');nav.innerHTML='';
+    if(dateKey!==todayKey()){var b=document.createElement('button');b.className='pill active';b.textContent='回到今天';b.onclick=function(){openDate(todayKey());};nav.appendChild(b);}
+  }
+  function openDate(k){dateKey=k;entry=Object.assign({advance:'',judgment:'',emotion:'',next:'',state:3},data.entries[k]||{});renderEntry();document.querySelector('.tab[data-tab=today]').click();window.scrollTo({top:0,behavior:'smooth'});}
+
+  document.getElementById('saveBtn').addEventListener('click',function(){
+    data.entries[dateKey]=Object.assign({},entry);
+    if(persist()){var n=document.getElementById('savedNote');n.classList.add('show');setTimeout(function(){n.classList.remove('show');},2000);renderArchive();}
+    else alert('保存失败。如果你在 Claude 预览里，数据无法保存——请下载后用手机浏览器打开。');
+  });
+
+  // notes
+  var noteInput=document.getElementById('noteInput');
+  document.getElementById('noteAdd').addEventListener('click',function(){
+    var v=noteInput.value.trim();if(!v)return;
+    data.notes.unshift({id:Date.now(),ts:Date.now(),text:v});
+    persist();noteInput.value='';renderNotes();
+  });
+  function renderNotes(){
+    var box=document.getElementById('noteStream');box.innerHTML='';
+    if(data.notes.length===0){box.innerHTML='<div class="empty">还没有碎碎念。脑子里冒出什么，随手丢进来。</div>';return;}
+    data.notes.forEach(function(n){
+      var el=document.createElement('div');el.className='note-item';
+      el.innerHTML='<div class="nt-time">'+prettyTime(n.ts)+'</div><div class="nt-text">'+esc(n.text)+'</div><button class="nt-del" title="删除">×</button>';
+      el.querySelector('.nt-del').onclick=function(){if(confirm('删掉这条？')){data.notes=data.notes.filter(function(x){return x.id!==n.id;});persist();renderNotes();}};
+      box.appendChild(el);
+    });
+  }
+
+  // archive + search
+  var searchEl=document.getElementById('search');
+  searchEl.addEventListener('input',function(){renderArchive(searchEl.value.trim());});
+  function renderArchive(q){
+    var box=document.getElementById('archive');box.innerHTML='';
+    q=(q||'').toLowerCase();
+    var rows=[];
+    Object.keys(data.entries).forEach(function(k){
+      var v=data.entries[k];
+      var blob=[v.advance,v.judgment,v.emotion,v.next].join(' ');
+      if(!q || blob.toLowerCase().indexOf(q)>=0){
+        rows.push({type:'日记',key:k,sort:k,peek:(v.advance||v.judgment||v.next||v.emotion||'（空白页）'),onclick:function(){openDate(k);}});
+      }
+    });
+    data.notes.forEach(function(n){
+      if(!q || n.text.toLowerCase().indexOf(q)>=0){
+        var d=new Date(n.ts);var dk=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+        rows.push({type:'碎碎念',key:dk,sort:dk+'_z',peek:n.text,onclick:function(){document.querySelector('.tab[data-tab=notes]').click();}});
+      }
+    });
+    rows.sort(function(a,b){return b.sort.localeCompare(a.sort);});
+    if(rows.length===0){box.innerHTML='<div class="empty">'+(q?'没找到相关内容。':'还没有记录。从今天开始。')+'</div>';return;}
+    rows.forEach(function(r){
+      var el=document.createElement('div');el.className='entry-row';
+      el.innerHTML='<span class="d">'+prettyDate(r.key)+'<span class="tag">'+r.type+'</span></span><span class="peek">'+esc(r.peek)+'</span>';
+      el.onclick=r.onclick;box.appendChild(el);
+    });
+  }
+
+  // export
+  document.getElementById('exportBtn').addEventListener('click',function(){
+    var lines=['# 我的容器  导出于 '+prettyTime(Date.now()),''];
+    lines.push('## 日记','');
+    Object.keys(data.entries).sort().reverse().forEach(function(k){
+      var v=data.entries[k];
+      lines.push('### '+prettyDate(k));
+      lines.push('- 推进：'+(v.advance||''));
+      lines.push('- 判断：'+(v.judgment||''));
+      lines.push('- 情绪：'+(v.emotion||''));
+      lines.push('- 下一步：'+(v.next||''));
+      lines.push('- 状态：'+(v.state||'')+'/5');
+      lines.push('');
+    });
+    lines.push('## 碎碎念','');
+    data.notes.forEach(function(n){lines.push('- ['+prettyTime(n.ts)+'] '+n.text);});
+    var blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='容器_'+todayKey()+'.txt';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  });
+
+  renderEntry();renderNotes();renderArchive();
+})();
+</script>
