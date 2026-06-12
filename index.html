@@ -35,7 +35,7 @@
   <!-- NOTES (碎碎念) -->
   <div class="page" id="page-notes">
     <div class="note-input-wrap">
-      <textarea id="noteInput" placeholder="随手记一句…不用工整，不用完整。"></textarea>
+      <textarea id="noteInput" placeholder="看到好玩的、想分享的、突然想到的…随手丢进来。"></textarea>
       <button class="note-add" id="noteAdd">记下</button>
     </div>
     <div id="noteStream"></div>
@@ -113,6 +113,24 @@
   .entry-row .tag{font-size:11px;color:var(--gold);font-style:normal;margin-left:6px;}
   .empty{color:var(--ink-faint);font-style:italic;font-size:14.5px;padding:8px 4px;}
 
+  /* judgment block */
+  .field .label .opt{font-size:11px;color:var(--accent);border:1px solid var(--accent-soft);border-radius:10px;padding:0 7px;font-style:normal;}
+  .jtoggle{font-size:13.5px;color:var(--ink-faint);font-style:italic;border:1px dashed var(--line);border-radius:8px;padding:11px 13px;cursor:pointer;}
+  .jtoggle:active{background:var(--paper-deep);}
+  .jbody{display:none;background:rgba(255,255,255,0.4);border:1px solid var(--line);border-radius:8px;padding:13px 13px 3px;}
+  .jrow{margin-bottom:12px;}
+  .jcap{font-family:'Fraunces',serif;font-size:13px;color:var(--ink-soft);margin-bottom:4px;}
+  .jrow textarea{width:100%;min-height:40px;resize:vertical;font-family:'Newsreader',serif;font-size:16px;line-height:1.55;color:var(--ink);background:rgba(255,255,255,0.6);border:1px solid var(--line);border-radius:6px;padding:7px 10px;outline:none;}
+  .jrow textarea:focus{border-color:var(--accent-soft);}
+  .jrow textarea::placeholder{color:var(--ink-faint);font-style:italic;opacity:0.7;}
+
+  /* recall card */
+  .recall{background:rgba(176,132,66,0.08);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:22px;cursor:pointer;}
+  .recall:active{background:rgba(176,132,66,0.14);}
+  .recall .rc-label{font-size:12px;color:var(--gold);font-style:italic;margin-bottom:5px;}
+  .recall .rc-date{font-family:'Fraunces',serif;font-size:15px;margin-bottom:4px;}
+  .recall .rc-text{color:var(--ink-soft);font-size:14px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
   @media(max-width:480px){
     .topbar{padding:16px 16px 8px;}
     .brand{font-size:23px;}
@@ -133,11 +151,12 @@
   load();
 
   var FIELDS=[
-    {key:'advance',name:'推进',q:'今天推进了什么？哪怕只有一点点。',ph:'一件你真的往前挪了的事…'},
-    {key:'judgment',name:'判断',q:'今天想通了什么，或做了什么判断？',ph:'一个你比昨天更清楚的认知…'},
-    {key:'emotion',name:'情绪',q:'真实的感受 — 看见它，别伪装成判断。',ph:'难受就是难受，害怕就是害怕…',emotion:true},
-    {key:'next',name:'下一步',q:'明天最重要的那一件事。',ph:'只写一件…'}
+    {key:'advance',name:'推进',q:'今天做了什么、推进了什么？没有也没关系。',ph:'随手写，不用工整…'},
+    {key:'judgment',name:'判断',q:'今天要是想通了什么，顺手记一个。',structured:true},
+    {key:'emotion',name:'情绪',q:'真实的感受 — 看见它，别伪装成判断。',ph:'什么感受？想到的话，记一下是什么勾起来的…',emotion:true},
+    {key:'next',name:'下一步',q:'明天最想做的那一件事。',ph:'只写一件…'}
   ];
+  var DEFAULTS={advance:'',judgment:'',judgmentWhy:'',judgmentBet:'',emotion:'',next:'',state:3};
   var SW=['','枯竭','低落','尚可','不错','充盈'];
   function pad(n){return String(n).padStart(2,'0');}
   function todayKey(){var x=new Date();return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate());}
@@ -146,7 +165,7 @@
   function esc(s){return (s||'').replace(/</g,'&lt;');}
 
   var dateKey=todayKey();
-  var entry=Object.assign({advance:'',judgment:'',emotion:'',next:'',state:3}, data.entries[dateKey]||{});
+  var entry=Object.assign({}, DEFAULTS, data.entries[dateKey]||{});
 
   // tabs
   document.querySelectorAll('.tab').forEach(function(t){
@@ -161,23 +180,50 @@
   // build today fields
   var fieldsEl=document.getElementById('fields');
   FIELDS.forEach(function(f){
+    if(f.structured){buildJudgment(f);return;}
     var w=document.createElement('div');w.className='field'+(f.emotion?' emotion':'');
     var l=document.createElement('div');l.className='label';l.innerHTML='<span class="name">'+f.name+'</span><span class="q">'+f.q+'</span>';
     var ta=document.createElement('textarea');ta.placeholder=f.ph;ta.id='ta_'+f.key;
     ta.addEventListener('input',function(){entry[f.key]=ta.value;});
     w.appendChild(l);w.appendChild(ta);fieldsEl.appendChild(w);
   });
+  function buildJudgment(f){
+    var w=document.createElement('div');w.className='field judgment';
+    var l=document.createElement('div');l.className='label';
+    l.innerHTML='<span class="name">'+f.name+'</span><span class="opt">可选</span><span class="q">'+f.q+'</span>';
+    w.appendChild(l);
+    var toggle=document.createElement('div');toggle.className='jtoggle';toggle.id='jToggle';
+    toggle.textContent='＋ 今天有想通的、做了个判断？记一个（没有就跳过）';
+    var body=document.createElement('div');body.className='jbody';body.id='jBody';
+    var rows=[
+      {k:'judgment',cap:'我判断 / 决定',ph:'例：决定接下这个项目…'},
+      {k:'judgmentWhy',cap:'因为',ph:'当时的依据、我看重的点…'},
+      {k:'judgmentBet',cap:'我赌它会',ph:'我预期的结果（将来用来对账）…'}
+    ];
+    rows.forEach(function(r){
+      var row=document.createElement('div');row.className='jrow';
+      var cap=document.createElement('div');cap.className='jcap';cap.textContent=r.cap;
+      var ta=document.createElement('textarea');ta.placeholder=r.ph;ta.id='ta_'+r.k;
+      ta.addEventListener('input',function(){entry[r.k]=ta.value;});
+      row.appendChild(cap);row.appendChild(ta);body.appendChild(row);
+    });
+    toggle.addEventListener('click',openJudgment);
+    w.appendChild(toggle);w.appendChild(body);fieldsEl.appendChild(w);
+  }
+  function openJudgment(){var t=document.getElementById('jToggle'),b=document.getElementById('jBody');if(t)t.style.display='none';if(b)b.style.display='block';}
+  function collapseJudgment(){var t=document.getElementById('jToggle'),b=document.getElementById('jBody');if(b)b.style.display='none';if(t)t.style.display='block';}
   var stateEl=document.getElementById('state'),stateVal=document.getElementById('stateVal'),stateWord=document.getElementById('stateWord');
   stateEl.addEventListener('input',function(){entry.state=Number(stateEl.value);stateVal.textContent=stateEl.value;stateWord.textContent=SW[stateEl.value];});
 
   function renderEntry(){
-    FIELDS.forEach(function(f){document.getElementById('ta_'+f.key).value=entry[f.key]||'';});
+    ['advance','judgment','judgmentWhy','judgmentBet','emotion','next'].forEach(function(k){var el=document.getElementById('ta_'+k);if(el)el.value=entry[k]||'';});
+    if(entry.judgment||entry.judgmentWhy||entry.judgmentBet)openJudgment();else collapseJudgment();
     stateEl.value=entry.state||3;stateVal.textContent=entry.state||3;stateWord.textContent=SW[entry.state||3];
     document.getElementById('dateLabel').textContent=prettyDate(dateKey)+(dateKey===todayKey()?' · 今天':'');
     var nav=document.getElementById('nav');nav.innerHTML='';
     if(dateKey!==todayKey()){var b=document.createElement('button');b.className='pill active';b.textContent='回到今天';b.onclick=function(){openDate(todayKey());};nav.appendChild(b);}
   }
-  function openDate(k){dateKey=k;entry=Object.assign({advance:'',judgment:'',emotion:'',next:'',state:3},data.entries[k]||{});renderEntry();document.querySelector('.tab[data-tab=today]').click();window.scrollTo({top:0,behavior:'smooth'});}
+  function openDate(k){dateKey=k;entry=Object.assign({},DEFAULTS,data.entries[k]||{});renderEntry();document.querySelector('.tab[data-tab=today]').click();window.scrollTo({top:0,behavior:'smooth'});}
 
   document.getElementById('saveBtn').addEventListener('click',function(){
     data.entries[dateKey]=Object.assign({},entry);
@@ -194,7 +240,7 @@
   });
   function renderNotes(){
     var box=document.getElementById('noteStream');box.innerHTML='';
-    if(data.notes.length===0){box.innerHTML='<div class="empty">还没有碎碎念。脑子里冒出什么，随手丢进来。</div>';return;}
+    if(data.notes.length===0){box.innerHTML='<div class="empty">还没有碎碎念。好玩的、想安利的、灵光一闪的，都丢这儿。</div>';return;}
     data.notes.forEach(function(n){
       var el=document.createElement('div');el.className='note-item';
       el.innerHTML='<div class="nt-time">'+prettyTime(n.ts)+'</div><div class="nt-text">'+esc(n.text)+'</div><button class="nt-del" title="删除">×</button>';
@@ -206,13 +252,34 @@
   // archive + search
   var searchEl=document.getElementById('search');
   searchEl.addEventListener('input',function(){renderArchive(searchEl.value.trim());});
+  function hasContent(v){return v&&(v.advance||v.judgment||v.judgmentWhy||v.judgmentBet||v.emotion||v.next);}
+  function recallEntry(){
+    var t=todayKey();var today=new Date();
+    var targets=[7,30,90,365];
+    for(var i=0;i<targets.length;i++){
+      var d=new Date(today.getFullYear(),today.getMonth(),today.getDate()-targets[i]);
+      var dk=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+      if(data.entries[dk]&&hasContent(data.entries[dk]))return{key:dk,days:targets[i]};
+    }
+    var keys=Object.keys(data.entries).filter(function(k){return k!==t&&hasContent(data.entries[k]);}).sort();
+    return keys.length?{key:keys[0],days:null}:null;
+  }
   function renderArchive(q){
     var box=document.getElementById('archive');box.innerHTML='';
     q=(q||'').toLowerCase();
+    if(!q){
+      var rc=recallEntry();
+      if(rc){
+        var rv=data.entries[rc.key];var peek=rv.advance||rv.judgment||rv.emotion||rv.next||rv.judgmentWhy||'';
+        var card=document.createElement('div');card.className='recall';
+        card.innerHTML='<div class="rc-label">那一天的你 · '+(rc.days?rc.days+' 天前':'更早以前')+'</div><div class="rc-date">'+prettyDate(rc.key)+'</div><div class="rc-text">「'+esc(peek)+'」</div>';
+        card.onclick=function(){openDate(rc.key);};box.appendChild(card);
+      }
+    }
     var rows=[];
     Object.keys(data.entries).forEach(function(k){
       var v=data.entries[k];
-      var blob=[v.advance,v.judgment,v.emotion,v.next].join(' ');
+      var blob=[v.advance,v.judgment,v.judgmentWhy,v.judgmentBet,v.emotion,v.next].join(' ');
       if(!q || blob.toLowerCase().indexOf(q)>=0){
         rows.push({type:'日记',key:k,sort:k,peek:(v.advance||v.judgment||v.next||v.emotion||'（空白页）'),onclick:function(){openDate(k);}});
       }
@@ -241,6 +308,8 @@
       lines.push('### '+prettyDate(k));
       lines.push('- 推进：'+(v.advance||''));
       lines.push('- 判断：'+(v.judgment||''));
+      lines.push('- 因为：'+(v.judgmentWhy||''));
+      lines.push('- 我赌它会：'+(v.judgmentBet||''));
       lines.push('- 情绪：'+(v.emotion||''));
       lines.push('- 下一步：'+(v.next||''));
       lines.push('- 状态：'+(v.state||'')+'/5');
