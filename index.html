@@ -4,6 +4,15 @@
     <button class="export-btn" id="exportBtn">导出</button>
   </div>
 
+  <div class="syncbar" id="syncBar">
+    <span class="sync-status" id="syncStatus">数据仅存本机</span>
+    <button class="sync-btn" id="syncBtn">登录同步</button>
+    <div class="sync-form" id="syncForm">
+      <input type="email" id="syncEmail" placeholder="你的邮箱（收登录链接）">
+      <button id="syncSend">发送登录链接</button>
+    </div>
+  </div>
+
   <div class="tabs">
     <button class="tab active" data-tab="today">今天</button>
     <button class="tab" data-tab="notes">碎碎念</button>
@@ -58,6 +67,15 @@
   .brand{font-family:'Fraunces',serif;font-weight:500;font-size:26px;letter-spacing:1px;}
   .export-btn{font-family:'Newsreader',serif;font-size:14px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);padding:7px 16px;border-radius:20px;cursor:pointer;}
   .export-btn:active{background:var(--paper-deep);}
+
+  .syncbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 22px 10px;}
+  .sync-status{font-size:12.5px;color:var(--ink-faint);font-style:italic;}
+  .sync-btn{font-family:'Newsreader',serif;font-size:13px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);padding:5px 14px;border-radius:20px;cursor:pointer;}
+  .sync-btn:active{background:var(--paper-deep);}
+  .sync-form{display:none;align-items:center;gap:8px;width:100%;margin-top:4px;}
+  .sync-form input{flex:1;font-family:'Newsreader',serif;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,0.6);outline:none;color:var(--ink);}
+  .sync-form input:focus{border-color:var(--accent-soft);}
+  .sync-form button{font-family:'Newsreader',serif;font-size:13px;background:var(--ink);color:var(--paper);border:none;padding:9px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;}
 
   .tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1.5px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:5;}
   .tab{flex:1;font-family:'Fraunces',serif;font-size:16px;background:transparent;border:none;color:var(--ink-faint);padding:12px 0;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;}
@@ -139,6 +157,7 @@
   }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   // mobile viewport
@@ -147,7 +166,7 @@
   var KEY='rongqi_data_v1';
   var data={ entries:{}, notes:[] };
   function load(){ try{var s=localStorage.getItem(KEY); if(s) data=JSON.parse(s);}catch(e){} if(!data.entries)data.entries={}; if(!data.notes)data.notes=[]; }
-  function persist(){ try{localStorage.setItem(KEY,JSON.stringify(data));return true;}catch(e){return false;} }
+  function persist(){ try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){return false;} if(sbClient&&sbUser)uploadData(); return true; }
   load();
 
   var FIELDS=[
@@ -325,5 +344,75 @@
   });
 
   renderEntry();renderNotes();renderArchive();
+
+  // ---- 云同步 (Supabase) ----
+  var SB_URL='https://idmcgojbzcsbemfdgmxm.supabase.co';
+  var SB_KEY='sb_publishable_j67a5FuBpSIAU2vmTaEzaQ_g8O20oeD';
+  var sbClient=null,sbUser=null,didMerge=false,uploadTimer=null;
+  function setStatus(t){var s=document.getElementById('syncStatus');if(s)s.textContent=t;}
+  function normalize(){if(!data.entries)data.entries={};if(!data.notes)data.notes=[];}
+  function fillScore(v){if(!v)return 0;var c=0;['advance','judgment','judgmentWhy','judgmentBet','emotion','next'].forEach(function(k){if(v[k])c++;});return c;}
+  function mergeData(server,local){
+    server=server||{};local=local||{};
+    var se=server.entries||{},le=local.entries||{},entries={};
+    Object.keys(se).forEach(function(k){entries[k]=se[k];});
+    Object.keys(le).forEach(function(k){if(!entries[k]||fillScore(le[k])>=fillScore(entries[k]))entries[k]=le[k];});
+    var byId={};(server.notes||[]).forEach(function(n){byId[n.id]=n;});(local.notes||[]).forEach(function(n){byId[n.id]=n;});
+    var notes=Object.keys(byId).map(function(k){return byId[k];}).sort(function(a,b){return b.ts-a.ts;});
+    return {entries:entries,notes:notes};
+  }
+  function uploadData(){
+    if(!sbClient||!sbUser)return;
+    clearTimeout(uploadTimer);
+    uploadTimer=setTimeout(function(){
+      sbClient.from('journal').upsert({user_id:sbUser.id,data:data,updated_at:new Date().toISOString()},{onConflict:'user_id'}).then(function(res){
+        setStatus(res.error?('云端保存失败：'+res.error.message):('已同步 · '+(sbUser.email||'')));
+      });
+    },500);
+  }
+  function afterLogin(){
+    if(!sbClient||!sbUser)return;
+    setStatus('同步中…');
+    sbClient.from('journal').select('data').eq('user_id',sbUser.id).maybeSingle().then(function(res){
+      var server=(res.data&&res.data.data)?res.data.data:null;
+      data=mergeData(server,data);normalize();persist();
+      entry=Object.assign({},DEFAULTS,data.entries[dateKey]||{});
+      renderEntry();renderNotes();renderArchive();
+      setStatus('已同步 · '+(sbUser.email||''));
+    },function(){setStatus('同步失败，已存本机');});
+  }
+  function updateSyncUI(){
+    var btn=document.getElementById('syncBtn'),form=document.getElementById('syncForm');
+    if(!btn)return;
+    if(!sbClient){btn.style.display='none';setStatus('同步不可用（网络/离线）');return;}
+    if(sbUser){btn.textContent='退出';if(form)form.style.display='none';setStatus('已同步 · '+(sbUser.email||''));}
+    else{btn.textContent='登录同步';setStatus('数据仅存本机');}
+  }
+  function onSession(session){
+    sbUser=(session&&session.user)?session.user:null;
+    if(sbUser&&!didMerge){didMerge=true;afterLogin();}
+    updateSyncUI();
+  }
+  function initSync(){
+    if(!window.supabase||!window.supabase.createClient){updateSyncUI();return;}
+    try{sbClient=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){sbClient=null;}
+    var btn=document.getElementById('syncBtn'),send=document.getElementById('syncSend');
+    if(btn)btn.onclick=function(){
+      if(sbUser){sbClient.auth.signOut().then(function(){sbUser=null;didMerge=false;updateSyncUI();});}
+      else{var f=document.getElementById('syncForm');if(f)f.style.display=(f.style.display==='flex'?'none':'flex');}
+    };
+    if(send)send.onclick=function(){
+      var email=(document.getElementById('syncEmail').value||'').trim();
+      if(!email||!sbClient)return;
+      setStatus('发送中…');
+      sbClient.auth.signInWithOtp({email:email,options:{emailRedirectTo:location.href.split('#')[0]}}).then(function(res){
+        setStatus(res.error?('发送失败：'+res.error.message):('登录链接已发到 '+email+'，去邮箱点开链接'));
+      });
+    };
+    updateSyncUI();
+    sbClient.auth.getSession().then(function(res){onSession(res.data?res.data.session:null);});
+    sbClient.auth.onAuthStateChange(function(_e,session){onSession(session);});
+  }
+  initSync();
 })();
 </script>
